@@ -3,6 +3,6 @@ opencv-python-headless
 numpy==1.26.4
 scipy
 matplotlib
-streamlit-webrtc
+streamlit-webrtc==0.47.1
 av
 requests
