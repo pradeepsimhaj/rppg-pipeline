@@ -125,7 +125,7 @@ elif mode == "Webcam (Browser)":
                 st.success("Webcam video saved!")
 
     except Exception:
-        st.error("Webcam not supported in this environment")
+        st.error(f"Webcam error: {str(e)}")
 
         
 # =========================
