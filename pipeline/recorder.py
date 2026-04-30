@@ -1,78 +1,88 @@
 import cv2
+import time
 import os
-import tempfile
-import requests
 
+def record_video(output_path="output/recorded.mp4", min_sec=25, max_sec=65):
+    os.makedirs("output", exist_ok=True)
 
-def download_video(url):
-    """Download video from URL to temp file"""
-    try:
-        response = requests.get(url, stream=True)
-        if response.status_code != 200:
-            print("❌ Failed to download video")
-            return None
-
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
-        for chunk in response.iter_content(chunk_size=1024):
-            temp_file.write(chunk)
-
-        temp_file.close()
-        return temp_file.name
-
-    except Exception as e:
-        print("❌ Error downloading video:", e)
-        return None
-
-
-def load_video(video_path):
-    """
-    Supports:
-    - Local file path
-    - URL input
-    """
-
-    # =========================
-    # 🌐 Handle URL input
-    # =========================
-    if video_path.startswith("http"):
-        print("🌐 Downloading video from URL...")
-        video_path = download_video(video_path)
-
-        if video_path is None:
-            return [], 0
-
-    # =========================
-    # 📁 Validate file
-    # =========================
-    if not os.path.exists(video_path):
-        print("❌ Video file not found:", video_path)
-        return [], 0
-
-    # =========================
-    # 🎥 Load video
-    # =========================
-    cap = cv2.VideoCapture(video_path)
+    cap = cv2.VideoCapture(0)
 
     if not cap.isOpened():
-        print("❌ Failed to open video")
-        return [], 0
+        print("❌ Cannot access camera")
+        return None
 
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
+    fps = int(cap.get(cv2.CAP_PROP_FPS)) or 30
+    width = int(cap.get(3))
+    height = int(cap.get(4))
 
-    if fps == 0:
-        fps = 30
-        print("⚠️ FPS fallback to 30")
+    out = cv2.VideoWriter(
+        output_path,
+        cv2.VideoWriter_fourcc(*'mp4v'),
+        fps,
+        (width, height)
+    )
 
-    frames = []
+    face_cascade = cv2.CascadeClassifier(
+        cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+    )
+
+    start_time = time.time()
+    no_face_start = None
 
     while True:
         ret, frame = cap.read()
         if not ret:
             break
-        frames.append(frame)
+
+        elapsed = time.time() - start_time
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+        # Draw face box
+        for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x+w, y+h), (0,255,0), 2)
+
+        # Timer
+        cv2.putText(
+            frame,
+            f"Time: {int(elapsed)}s",
+            (10, 40),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0,255,0),
+            2
+        )
+
+        # Require exactly ONE face
+        if len(faces) != 1:
+            if no_face_start is None:
+                no_face_start = time.time()
+            elif time.time() - no_face_start > 3:
+                print("⚠️ Invalid face count — stopping")
+                break
+        else:
+            no_face_start = None
+
+        out.write(frame)
+        cv2.imshow("Recording", frame)
+
+        key = cv2.waitKey(1) & 0xFF
+
+        if elapsed > 30 and key == ord('q'):
+            break
+
+        if elapsed >= 60:
+            break
 
     cap.release()
+    out.release()
+    cv2.destroyAllWindows()
 
-    print(f"✅ Loaded {len(frames)} frames at {fps} FPS")
+    duration = time.time() - start_time
 
-    return frames, fps
+    if duration < min_sec or duration > max_sec:
+        print("❌ Invalid duration")
+        return None
+
+    return output_path
