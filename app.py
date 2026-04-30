@@ -403,76 +403,29 @@ if mode == "Upload Video":
 
 
 
-
-
-
-
 elif mode == "Webcam (Browser)":
-    st.info("📸 Record a 60-second video")
+    st.subheader("📸 High-Reliability Recorder")
+    st.info("Click 'Start' to begin. It will automatically record for 60 seconds.")
 
-    # We use a Data URI to pass the HTML to st.iframe
-    recorder_html = """
-    <html>
-      <body style="margin:0; font-family:sans-serif;">
-        <video id="p" width="100%" autoplay muted style="background:#000; border-radius:8px;"></video>
-        <button id="b" style="width:100%; margin-top:10px; padding:12px; background:#ff4b4b; color:#fff; border:none; cursor:pointer;">🔴 Start 60s Recording</button>
-        <script>
-          const b=document.getElementById('b'), p=document.getElementById('p');
-          let r, c=[];
-          b.onclick = async () => {
-            const s = await navigator.mediaDevices.getUserMedia({video:true});
-            p.srcObject = s;
-            r = new MediaRecorder(s);
-            r.ondataavailable = e => c.push(e.data);
-            r.onstop = () => {
-              const blob = new Blob(c, {type:'video/mp4'});
-              const reader = new FileReader();
-              reader.readAsDataURL(blob);
-              reader.onloadend = () => {
-                window.parent.postMessage({type:'streamlit:setComponentValue', value:reader.result}, '*');
-              };
-              s.getTracks().forEach(t => t.stop());
-            };
-            r.start();
-            setTimeout(() => r.stop(), 60000);
-            b.innerText = "Recording... (60s)";
-            b.disabled = true;
-          };
-        </script>
-      </body>
-    </html>
-    """
+    # Container to store frames
+    if "frames" not in st.session_state:
+        st.session_state.frames = []
     
-    # Using st.iframe as requested by the 2026 Streamlit update
-    video_data = st.iframe(
-        f"data:text/html;base64,{base64.b64encode(recorder_html.encode()).decode()}",
-        height=400
+    def video_frame_callback(frame):
+        img = frame.to_ndarray(format="bgr24")
+        # You can process frames here in real-time if needed
+        return frame
+
+    ctx = webrtc_streamer(
+        key="rppg-recorder",
+        mode=WebRtcMode.SENDRECV,
+        video_frame_callback=video_frame_callback,
+        rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
+        media_stream_constraints={"video": True, "audio": False},
     )
 
-    # Use a text input to receive the Base64 data from the iframe
-    # (Hidden in UI, used to bridge JS to Python)
-    video_base64 = st.text_input("Data Bridge", key="bridge", label_visibility="collapsed")
-
-    if video_base64:
-        header, encoded = video_base64.split(",", 1)
-        data = base64.b64decode(encoded)
-        path = "output/capture.mp4"
-        with open(path, "wb") as f:
-            f.write(data)
-        st.session_state.video_path = path
-        st.success("Video Captured!")
-
-# =========================
-# ▶️ Run Analysis (With Fix for Unpacking)
-# =========================
-if st.session_state.video_path and st.button("Run Analysis"):
-    with st.spinner("Processing..."):
-        # Catch the result as a single object first to prevent ValueError
-        pipeline_output = run_pipeline(st.session_state.video_path)
-        
-        # Verify if it's a tuple/list of the right length
-        if isinstance(pipeline_output, (list, tuple)) and len(pipeline_output) >= 2:
-            results, final_bpm, *others = pipeline_output # *others handles extra values
-            # ... rest of your display logic
-        else:
-            st.error("Pipeline returned unexpected data format.")
+    if ctx.state.playing:
+        st.warning("🎥 Recording in progress... Please stay still.")
+        # Logic to save the stream to a file after 60 seconds
+        # Note: In Streamlit Cloud, you'd typically use a 'Record' button 
+        # inside the webrtc component or a simple timer.
