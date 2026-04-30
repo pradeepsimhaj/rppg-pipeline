@@ -259,84 +259,21 @@ if mode == "Upload Video":
 # 🌐 Webcam (Browser)
 # =========================
 elif mode == "Webcam (Browser)":
-    st.info("🎥 Record video (60 sec) using your camera")
+    st.info("📸 Capture video using browser camera")
 
-    video_data = components.html(
-        """
-        <video id="video" autoplay muted style="width:100%;"></video>
-        <br/>
-        <button onclick="startRecording()">Start</button>
-        <button onclick="stopRecording()">Stop</button>
+    img_file = st.camera_input("Take a picture")
 
-        <script>
-        let mediaRecorder;
-        let recordedChunks = [];
+    if img_file:
+        os.makedirs("output", exist_ok=True)
 
-        setTimeout(() => {
-    if (mediaRecorder.state === "recording") {
-        mediaRecorder.stop();
-    }
-}, 60000);
+        path = "output/capture.jpg"
 
-        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then(stream => {
-            document.getElementById("video").srcObject = stream;
+        with open(path, "wb") as f:
+            f.write(img_file.getbuffer())
 
-            mediaRecorder = new MediaRecorder(stream);
+        st.session_state.video_path = path
+        st.success("Image captured!")        
 
-            mediaRecorder.ondataavailable = function(event) {
-                if (event.data.size > 0) {
-                    recordedChunks.push(event.data);
-                }
-            };
-
-            mediaRecorder.onstop = function() {
-                const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                const reader = new FileReader();
-
-                reader.onloadend = function() {
-                    const base64data = reader.result;
-                    window.parent.postMessage({
-                        type: "video",
-                        data: base64data
-                    }, "*");
-                };
-
-                reader.readAsDataURL(blob);
-            };
-        });
-
-        function startRecording() {
-            recordedChunks = [];
-            mediaRecorder.start();
-        }
-
-        function stopRecording() {
-            mediaRecorder.stop();
-        }
-        </script>
-        """,
-        height=400,
-    )
-
-    # Receive video
-    if video_data:
-        try:
-            header, encoded = video_data.split(",", 1)
-            video_bytes = base64.b64decode(encoded)
-
-            os.makedirs("output", exist_ok=True)
-            filename = f"webcam_{uuid.uuid4().hex}.webm"
-            path = os.path.join("output", filename)
-
-            with open(path, "wb") as f:
-                f.write(video_bytes)
-
-            st.session_state.video_path = path
-            st.success("✅ Video recorded and saved!")
-
-        except Exception as e:
-            st.error(f"Video processing failed: {e}")
 
 # =========================
 # ▶️ Run Analysis
