@@ -5,6 +5,9 @@ import os
 def load_video(video_path):
     print(f"📥 Loading video: {video_path}")
 
+    if video_path.endswith(".webm"):
+        print("⚠️ WebM detected — OpenCV fallback")
+
     # =========================
     # ❌ File existence check
     # =========================
@@ -15,7 +18,7 @@ def load_video(video_path):
     # =========================
     # 🔥 Force file backend (avoid camera probing)
     # =========================
-    cap = cv2.VideoCapture(video_path, cv2.CAP_FFMPEG)
+    cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():
         print("❌ Cannot open video")

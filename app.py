@@ -203,6 +203,10 @@ import matplotlib.pyplot as plt
 from pipeline_runner import run_pipeline
 from streamlit_webrtc import webrtc_streamer, WebRtcMode
 
+import streamlit.components.v1 as components
+import base64
+import uuid
+
 
 st.title("📹 rPPG Health Monitor")
 
@@ -255,60 +259,85 @@ if mode == "Upload Video":
 # 🌐 Webcam (Browser)
 # =========================
 elif mode == "Webcam (Browser)":
-    try:
-        from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
-        import av
-        import cv2
+    st.info("🎥 Record video (60 sec) using your camera")
 
-        class VideoProcessor(VideoProcessorBase):
-            def __init__(self):
-                self.frames = []
+    video_data = components.html(
+        """
+        <video id="video" autoplay muted style="width:100%;"></video>
+        <br/>
+        <button onclick="startRecording()">Start</button>
+        <button onclick="stopRecording()">Stop</button>
 
-            def recv(self, frame):
-                img = frame.to_ndarray(format="bgr24")
-                self.frames.append(img)
-                return av.VideoFrame.from_ndarray(img, format="bgr24")
+        <script>
+        let mediaRecorder;
+        let recordedChunks = [];
 
-        ctx = webrtc_streamer(
-            key="example",
-            mode=WebRtcMode.SENDRECV,
-            rtc_configuration={
-                "iceServers": [
-                {"urls": ["stun:stun.l.google.com:19302"]},
-            ]
-        },
-        media_stream_constraints={"video": True, "audio": False},
-        video_processor_factory=VideoProcessor)
+        setTimeout(() => {
+    if (mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+    }
+}, 60000);
 
-        if st.button("Stop & Save Recording"):
-            if ctx.video_processor and ctx.video_processor.frames:
+        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(stream => {
+            document.getElementById("video").srcObject = stream;
 
-                frames = ctx.video_processor.frames
+            mediaRecorder = new MediaRecorder(stream);
 
-                os.makedirs("output", exist_ok=True)
-                path = os.path.join("output", "webcam.mp4")
+            mediaRecorder.ondataavailable = function(event) {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
 
-                h, w, _ = frames[0].shape
+            mediaRecorder.onstop = function() {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const reader = new FileReader();
 
-                out = cv2.VideoWriter(
-                    path,
-                    cv2.VideoWriter_fourcc(*'mp4v'),
-                    30,
-                    (w, h)
-                )
+                reader.onloadend = function() {
+                    const base64data = reader.result;
+                    window.parent.postMessage({
+                        type: "video",
+                        data: base64data
+                    }, "*");
+                };
 
-                for f in frames:
-                    out.write(f)
+                reader.readAsDataURL(blob);
+            };
+        });
 
-                out.release()
+        function startRecording() {
+            recordedChunks = [];
+            mediaRecorder.start();
+        }
 
-                st.session_state.video_path = path
-                st.success("Webcam video saved!")
+        function stopRecording() {
+            mediaRecorder.stop();
+        }
+        </script>
+        """,
+        height=400,
+    )
 
-    except Exception as e:
-        st.error(f"Webcam error: {str(e)}")
+    # Receive video
+    if video_data:
+        try:
+            header, encoded = video_data.split(",", 1)
+            video_bytes = base64.b64decode(encoded)
 
-        
+            os.makedirs("output", exist_ok=True)
+            filename = f"webcam_{uuid.uuid4().hex}.webm"
+            path = os.path.join("output", filename)
+
+            with open(path, "wb") as f:
+                f.write(video_bytes)
+
+            st.session_state.video_path = path
+            st.success("✅ Video recorded and saved!")
+
+        except Exception as e:
+            st.error(f"Video processing failed: {e}")
+
 # =========================
 # ▶️ Run Analysis
 # =========================
