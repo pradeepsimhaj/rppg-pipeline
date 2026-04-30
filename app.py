@@ -2,7 +2,6 @@ import streamlit as st
 import os
 import matplotlib.pyplot as plt
 from pipeline_runner import run_pipeline
-# from pipeline.recorder import record_video
 
 st.title("📹 rPPG Health Monitor")
 
@@ -30,7 +29,7 @@ else:
 mode = st.radio("Select Input Method:", modes)
 
 # =========================
-# 🔗 URL INPUT (NEW)
+# 🔗 URL INPUT
 # =========================
 st.subheader("🔗 Or use video from URL")
 url = st.text_input("Paste video URL (.mp4)")
@@ -49,7 +48,9 @@ if mode == "Upload Video":
 
     if uploaded_file:
         os.makedirs("output", exist_ok=True)
-        file_path = os.path.join("output", "input.mp4")
+
+        # 🔥 unique file name (prevents overwrite issues)
+        file_path = os.path.join("output", f"input_{uploaded_file.name}")
 
         with open(file_path, "wb") as f:
             f.write(uploaded_file.read())
@@ -61,27 +62,26 @@ if mode == "Upload Video":
 # 🎥 Local Recording (ONLY LOCAL)
 # =========================
 elif mode == "Record Video":
-    if IS_CLOUD:
-        st.error("⚠️ OpenCV webcam not supported in cloud. Use browser webcam instead.")
-    else:
-        st.warning("This will open your system webcam")
 
-        if st.button("Start Recording"):
-            try:
-                from pipeline.recorder import record_video  # ✅ lazy import
+    st.warning("This works only on local machine")
 
-                path = record_video()
+    if st.button("Start Recording"):
+        try:
+            from pipeline.recorder import record_video  # lazy import
 
-                if path:
-                    st.success("Recording completed!")
-                    st.session_state.video_path = path
-                else:
-                    st.error("Recording failed")
+            path = record_video()
 
-            except Exception as e:
-                st.error(f"Recording error: {e}")
+            if path:
+                st.success("Recording completed!")
+                st.session_state.video_path = path
+            else:
+                st.error("Recording failed")
+
+        except Exception as e:
+            st.error(f"Recording error: {e}")
+
 # =========================
-# 🌐 Browser Webcam (Cloud)
+# 🌐 Browser Webcam (CLOUD)
 # =========================
 elif mode == "Webcam (Browser)":
     try:
@@ -105,12 +105,14 @@ elif mode == "Webcam (Browser)":
 
         if st.button("Stop & Save Recording"):
             if ctx.video_processor and ctx.video_processor.frames:
+
                 frames = ctx.video_processor.frames
 
                 os.makedirs("output", exist_ok=True)
                 path = os.path.join("output", "webcam.mp4")
 
                 h, w, _ = frames[0].shape
+
                 out = cv2.VideoWriter(
                     path,
                     cv2.VideoWriter_fourcc(*'mp4v'),
@@ -143,6 +145,9 @@ if st.session_state.video_path:
                 st.session_state.video_path
             )
 
+        # =========================
+        # ❌ No data case
+        # =========================
         if len(results) == 0:
             st.error("❌ No valid data extracted. Try better lighting / stable face.")
         else:
@@ -162,7 +167,7 @@ if st.session_state.video_path:
             st.info(f"🫁 Breathing Stability: {resp_var}")
             st.info(f"😓 Stress Level: {stress}")
 
-            # Performance metrics (NEW)
+            # ⚡ Performance
             st.info(f"⚡ Avg Processing Time: {avg_time}s")
             st.info(f"⚡ Total Processing Time: {total_time}s")
 
