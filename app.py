@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import time
 import cv2
+import pandas as pd
 import matplotlib.pyplot as plt
 from pipeline_runner import run_pipeline
 
@@ -9,7 +10,6 @@ from pipeline_runner import run_pipeline
 # 🎯 APP TITLE
 # =========================
 st.title("📹 rPPG Health Monitor")
-
 st.info("💡 Upload or record a 60-second face video for analysis")
 
 # =========================
@@ -80,7 +80,7 @@ elif mode == "Video URL":
         st.success("✅ URL loaded successfully!")
 
 # =========================
-# 🎥 RECORD & UPLOAD (STREAMLIT SAFE)
+# 🎥 RECORD & UPLOAD
 # =========================
 elif mode == "Record & Upload":
 
@@ -94,13 +94,11 @@ elif mode == "Record & Upload":
     - Remove glasses if possible
     """)
 
-    # START RECORDING
     if not st.session_state.recording:
         if st.button("▶️ Start Recording"):
             st.session_state.recording = True
             st.session_state.start_time = time.time()
 
-    # RECORDING STATE
     else:
         elapsed = int(time.time() - st.session_state.start_time)
         remaining = max(0, 60 - elapsed)
@@ -112,7 +110,6 @@ elif mode == "Record & Upload":
             st.session_state.recording = False
             st.success("✅ Recording complete. Upload video below.")
 
-    # UPLOAD AFTER RECORDING
     uploaded_file = st.file_uploader(
         "Upload your recorded video",
         type=["mp4", "webm"]
@@ -145,7 +142,7 @@ if st.session_state.video_path:
 
             result = run_pipeline(st.session_state.video_path)
 
-            # ✅ SAFETY FIX (no crash)
+            # ✅ Safety check
             if not result or len(result) != 8:
                 st.error("❌ Processing failed. Invalid video.")
                 st.stop()
@@ -157,11 +154,9 @@ if st.session_state.video_path:
         else:
             st.subheader("📊 Results Summary")
 
-            for r in results:
-                st.write(
-                    f"Chunk {r['chunk']}: BPM={r['bpm']} | Resp={r['resp']} | Time={r['time']}s"
-                )
-
+            # =========================
+            # 🧠 METRICS
+            # =========================
             col1, col2 = st.columns(2)
 
             with col1:
@@ -176,12 +171,35 @@ if st.session_state.video_path:
 
             st.markdown("---")
 
+            # =========================
+            # 📦 CHUNK TABLE (UPDATED)
+            # =========================
+            st.subheader("📦 Chunk-level Results")
+
+            formatted_results = []
+            for r in results:
+                formatted_results.append({
+                    "Chunk": r["chunk"],
+                    "BPM": r["bpm"] if r["bpm"] > 0 else "-",
+                    "Resp": r["resp"] if r["resp"] > 0 else "-",
+                    "Time (s)": r["time"]
+                })
+
+            df = pd.DataFrame(formatted_results)
+
+            st.dataframe(df, use_container_width=True)
+
+            # =========================
+            # 📈 GRAPH
+            # =========================
             st.subheader("📈 BPM Over Time")
 
             bpms = [r["bpm"] if r["bpm"] > 0 else None for r in results]
             st.line_chart(bpms)
 
-            # 🧠 Smart feedback
+            # =========================
+            # 🧠 SMART FEEDBACK
+            # =========================
             if confidence < 20:
                 st.warning("⚠️ Low confidence — improve lighting and reduce movement.")
 
