@@ -1,7 +1,7 @@
 streamlit
-opencv-python
-numpy
+opencv-python-headless
+numpy==1.26.4
 scipy
-pandas
+matplotlib
 streamlit-webrtc
 av
