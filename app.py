@@ -357,7 +357,7 @@ elif mode == "Webcam (Browser)":
         st.session_state.video_path = path
         st.success("Video recorded and saved!")
 
-        
+
 # =========================
 # ▶️ Run Analysis
 # =========================
@@ -368,9 +368,11 @@ if st.session_state.video_path:
     if st.button("Run Analysis"):
         with st.spinner("Processing..."):
 
-            results, final_bpm, confidence, hrv, stress, resp_var, avg_time, total_time = run_pipeline(
+            output = run_pipeline(
                 st.session_state.video_path
             )
+
+            results = output.get("results", [])
 
         if len(results) == 0:
             st.error("❌ No valid data extracted. Try better lighting.")
