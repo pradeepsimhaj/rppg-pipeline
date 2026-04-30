@@ -297,7 +297,7 @@ elif mode == "Webcam (Browser)":
                 st.session_state.video_path = path
                 st.success("Webcam video saved!")
 
-    except Exception:
+    except Exception as e:
         st.error(f"Webcam error: {str(e)}")
 
         

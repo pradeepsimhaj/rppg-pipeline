@@ -6,3 +6,4 @@ matplotlib
 streamlit-webrtc==0.47.1
 av
 requests
+tornado==6.4.1
