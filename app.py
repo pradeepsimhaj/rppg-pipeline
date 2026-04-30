@@ -201,6 +201,8 @@ import streamlit as st
 import os
 import matplotlib.pyplot as plt
 from pipeline_runner import run_pipeline
+from streamlit_webrtc import webrtc_streamer, WebRtcMode
+
 
 st.title("📹 rPPG Health Monitor")
 
@@ -268,9 +270,15 @@ elif mode == "Webcam (Browser)":
                 return av.VideoFrame.from_ndarray(img, format="bgr24")
 
         ctx = webrtc_streamer(
-            key="webcam",
-            video_processor_factory=VideoProcessor
-        )
+            key="example",
+            mode=WebRtcMode.SENDRECV,
+            rtc_configuration={
+                "iceServers": [
+                {"urls": ["stun:stun.l.google.com:19302"]},
+            ]
+        },
+        media_stream_constraints={"video": True, "audio": False},
+        video_processor_factory=VideoProcessor)
 
         if st.button("Stop & Save Recording"):
             if ctx.video_processor and ctx.video_processor.frames:
