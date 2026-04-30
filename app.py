@@ -348,11 +348,11 @@ if st.session_state.video_path:
             formatted_results = []
             for r in results:
                 formatted_results.append({
-                    "Chunk": r["chunk"],
-                    "BPM": r["bpm"] if r["bpm"] > 0 else "-",
-                    "Resp": r["resp"] if r["resp"] > 0 else "-",
-                    "Time (s)": r["time"]
-                })
+                    "Chunk": int(r["chunk"]),
+                    "BPM": float(r["bpm"]) if r["bpm"] > 0 else None,
+                    "Resp": float(r["resp"]) if r["resp"] > 0 else None,
+                    "Time (s)": float(r["time"])
+                    })
 
             df = pd.DataFrame(formatted_results)
             st.dataframe(df, width=True)
