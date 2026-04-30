@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import matplotlib.pyplot as plt
 from pipeline_runner import run_pipeline
-from pipeline.recorder import record_video
+# from pipeline.recorder import record_video
 
 st.title("📹 rPPG Health Monitor")
 
@@ -62,20 +62,24 @@ if mode == "Upload Video":
 # =========================
 elif mode == "Record Video":
     if IS_CLOUD:
-        st.error("⚠️ OpenCV webcam not supported in cloud.")
+        st.error("⚠️ OpenCV webcam not supported in cloud. Use browser webcam instead.")
     else:
-        from pipeline.recorder import record_video  # ✅ lazy import
-
         st.warning("This will open your system webcam")
 
         if st.button("Start Recording"):
-            path = record_video()
+            try:
+                from pipeline.recorder import record_video  # ✅ lazy import
 
-            if path:
-                st.success("Recording completed!")
-                st.session_state.video_path = path
-            else:
-                st.error("Recording failed")
+                path = record_video()
+
+                if path:
+                    st.success("Recording completed!")
+                    st.session_state.video_path = path
+                else:
+                    st.error("Recording failed")
+
+            except Exception as e:
+                st.error(f"Recording error: {e}")
 # =========================
 # 🌐 Browser Webcam (Cloud)
 # =========================
