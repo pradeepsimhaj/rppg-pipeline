@@ -276,127 +276,203 @@ if mode == "Upload Video":
 
 
 
-elif mode == "Webcam (Browser)":
-    st.info("📸 Record a 60-second video for analysis.")
+# elif mode == "Webcam (Browser)":
+#     st.info("📸 Record a 60-second video for analysis.")
 
-    # JavaScript + HTML Component for Recording
-    video_recorder_html = """
-    <div style="text-align: center;">
-        <video id="preview" width="100%" autoplay muted style="background: #000; border-radius: 10px;"></video>
-        <div style="margin-top: 10px;">
-            <button id="startBtn" style="padding: 10px 20px; background: #ff4b4b; color: white; border: none; border-radius: 5px; cursor: pointer;">🔴 Start Recording (60s)</button>
-            <p id="status" style="margin-top: 10px; font-family: sans-serif; color: #555;"></p>
-        </div>
-    </div>
+#     # JavaScript + HTML Component for Recording
+#     video_recorder_html = """
+#     <div style="text-align: center;">
+#         <video id="preview" width="100%" autoplay muted style="background: #000; border-radius: 10px;"></video>
+#         <div style="margin-top: 10px;">
+#             <button id="startBtn" style="padding: 10px 20px; background: #ff4b4b; color: white; border: none; border-radius: 5px; cursor: pointer;">🔴 Start Recording (60s)</button>
+#             <p id="status" style="margin-top: 10px; font-family: sans-serif; color: #555;"></p>
+#         </div>
+#     </div>
 
-    <script>
-        const startBtn = document.getElementById('startBtn');
-        const preview = document.getElementById('preview');
-        const status = document.getElementById('status');
+#     <script>
+#         const startBtn = document.getElementById('startBtn');
+#         const preview = document.getElementById('preview');
+#         const status = document.getElementById('status');
         
-        let recorder;
-        let chunks = [];
+#         let recorder;
+#         let chunks = [];
 
-        async function startRecording() {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            preview.srcObject = stream;
+#         async function startRecording() {
+#             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+#             preview.srcObject = stream;
             
-            recorder = new MediaRecorder(stream);
-            recorder.ondataavailable = (e) => chunks.push(e.data);
-            recorder.onstop = async () => {
-                const blob = new Blob(chunks, { type: 'video/mp4' });
-                const reader = new FileReader();
-                reader.readAsDataURL(blob);
-                reader.onloadend = () => {
-                    // Send the base64 data back to Streamlit
-                    window.parent.postMessage({
-                        type: 'streamlit:setComponentValue',
-                        value: reader.result
-                    }, '*');
-                };
-                stream.getTracks().forEach(track => track.stop());
-                status.innerText = "✅ Recording Finished! Processing...";
-            };
+#             recorder = new MediaRecorder(stream);
+#             recorder.ondataavailable = (e) => chunks.push(e.data);
+#             recorder.onstop = async () => {
+#                 const blob = new Blob(chunks, { type: 'video/mp4' });
+#                 const reader = new FileReader();
+#                 reader.readAsDataURL(blob);
+#                 reader.onloadend = () => {
+#                     // Send the base64 data back to Streamlit
+#                     window.parent.postMessage({
+#                         type: 'streamlit:setComponentValue',
+#                         value: reader.result
+#                     }, '*');
+#                 };
+#                 stream.getTracks().forEach(track => track.stop());
+#                 status.innerText = "✅ Recording Finished! Processing...";
+#             };
 
-            recorder.start();
-            status.innerText = "Recording... 60 seconds remaining";
+#             recorder.start();
+#             status.innerText = "Recording... 60 seconds remaining";
             
-            // Auto-stop after 60 seconds
-            setTimeout(() => {
-                if(recorder.state === "recording") {
-                    recorder.stop();
-                }
-            }, 60000); 
-        }
+#             // Auto-stop after 60 seconds
+#             setTimeout(() => {
+#                 if(recorder.state === "recording") {
+#                     recorder.stop();
+#                 }
+#             }, 60000); 
+#         }
 
-        startBtn.onclick = startRecording;
-    </script>
-    """
+#         startBtn.onclick = startRecording;
+#     </script>
+#     """
 
-    # Render the recorder and capture the base64 output
-    video_data = components.html(video_recorder_html, height=450)
+#     # Render the recorder and capture the base64 output
+#     video_data = components.html(video_recorder_html, height=450)
 
-    # Use a session state hack to catch the data from the component
-    # In a real app, you might use 'streamlit_js_eval' or a custom component 
-    # but for simplicity, we can use a text_input or a hidden trigger.
-    # Here, we'll assume you use the uploaded_file logic once the JS returns the data:
+#     # Use a session state hack to catch the data from the component
+#     # In a real app, you might use 'streamlit_js_eval' or a custom component 
+#     # but for simplicity, we can use a text_input or a hidden trigger.
+#     # Here, we'll assume you use the uploaded_file logic once the JS returns the data:
     
-    video_base64 = st.text_input("Internal Video Buffer (Hidden)", key="vid_buffer", label_visibility="collapsed")
+#     video_base64 = st.text_input("Internal Video Buffer (Hidden)", key="vid_buffer", label_visibility="collapsed")
+
+#     if video_base64:
+#         # Decode the base64 string
+#         header, encoded = video_base64.split(",", 1)
+#         data = base64.b64decode(encoded)
+        
+#         os.makedirs("output", exist_ok=True)
+#         path = "output/webcam_record.mp4"
+        
+#         with open(path, "wb") as f:
+#             f.write(data)
+        
+#         st.session_state.video_path = path
+#         st.success("Video recorded and saved!")
+
+
+# # =========================
+# # ▶️ Run Analysis
+# # =========================
+# if st.session_state.video_path:
+
+#     st.info(f"Using: {st.session_state.video_path}")
+
+#     if st.button("Run Analysis"):
+#         with st.spinner("Processing..."):
+
+#             output = run_pipeline(
+#                 st.session_state.video_path
+#             )
+
+#             results = output.get("results", [])
+
+#         if len(results) == 0:
+#             st.error("❌ No valid data extracted. Try better lighting.")
+#         else:
+#             st.subheader("📊 Results")
+
+#             for r in results:
+#                 st.write(
+#                     f"Chunk {r['chunk']}: BPM={r['bpm']} | Resp={r['resp']} | Time={r['time']}s"
+#                 )
+
+#             st.success(f"❤️ BPM: {final_bpm}")
+#             st.info(f"📊 Confidence: {confidence}%")
+#             st.info(f"📉 HRV: {hrv}")
+#             st.info(f"🫁 Resp Stability: {resp_var}")
+#             st.info(f"😓 Stress: {stress}")
+
+#             st.info(f"⚡ Avg Time: {avg_time}s")
+#             st.info(f"⚡ Total Time: {total_time}s")
+
+#             # Graph
+#             bpms = [r["bpm"] for r in results]
+
+#             fig, ax = plt.subplots()
+#             ax.plot(bpms, marker='o')
+#             ax.set_title("BPM over Time")
+#             st.pyplot(fig)
+
+
+
+
+
+
+
+elif mode == "Webcam (Browser)":
+    st.info("📸 Record a 60-second video")
+
+    # We use a Data URI to pass the HTML to st.iframe
+    recorder_html = """
+    <html>
+      <body style="margin:0; font-family:sans-serif;">
+        <video id="p" width="100%" autoplay muted style="background:#000; border-radius:8px;"></video>
+        <button id="b" style="width:100%; margin-top:10px; padding:12px; background:#ff4b4b; color:#fff; border:none; cursor:pointer;">🔴 Start 60s Recording</button>
+        <script>
+          const b=document.getElementById('b'), p=document.getElementById('p');
+          let r, c=[];
+          b.onclick = async () => {
+            const s = await navigator.mediaDevices.getUserMedia({video:true});
+            p.srcObject = s;
+            r = new MediaRecorder(s);
+            r.ondataavailable = e => c.push(e.data);
+            r.onstop = () => {
+              const blob = new Blob(c, {type:'video/mp4'});
+              const reader = new FileReader();
+              reader.readAsDataURL(blob);
+              reader.onloadend = () => {
+                window.parent.postMessage({type:'streamlit:setComponentValue', value:reader.result}, '*');
+              };
+              s.getTracks().forEach(t => t.stop());
+            };
+            r.start();
+            setTimeout(() => r.stop(), 60000);
+            b.innerText = "Recording... (60s)";
+            b.disabled = true;
+          };
+        </script>
+      </body>
+    </html>
+    """
+    
+    # Using st.iframe as requested by the 2026 Streamlit update
+    video_data = st.iframe(
+        f"data:text/html;base64,{base64.b64encode(recorder_html.encode()).decode()}",
+        height=400
+    )
+
+    # Use a text input to receive the Base64 data from the iframe
+    # (Hidden in UI, used to bridge JS to Python)
+    video_base64 = st.text_input("Data Bridge", key="bridge", label_visibility="collapsed")
 
     if video_base64:
-        # Decode the base64 string
         header, encoded = video_base64.split(",", 1)
         data = base64.b64decode(encoded)
-        
-        os.makedirs("output", exist_ok=True)
-        path = "output/webcam_record.mp4"
-        
+        path = "output/capture.mp4"
         with open(path, "wb") as f:
             f.write(data)
-        
         st.session_state.video_path = path
-        st.success("Video recorded and saved!")
-
+        st.success("Video Captured!")
 
 # =========================
-# ▶️ Run Analysis
+# ▶️ Run Analysis (With Fix for Unpacking)
 # =========================
-if st.session_state.video_path:
-
-    st.info(f"Using: {st.session_state.video_path}")
-
-    if st.button("Run Analysis"):
-        with st.spinner("Processing..."):
-
-            output = run_pipeline(
-                st.session_state.video_path
-            )
-
-            results = output.get("results", [])
-
-        if len(results) == 0:
-            st.error("❌ No valid data extracted. Try better lighting.")
+if st.session_state.video_path and st.button("Run Analysis"):
+    with st.spinner("Processing..."):
+        # Catch the result as a single object first to prevent ValueError
+        pipeline_output = run_pipeline(st.session_state.video_path)
+        
+        # Verify if it's a tuple/list of the right length
+        if isinstance(pipeline_output, (list, tuple)) and len(pipeline_output) >= 2:
+            results, final_bpm, *others = pipeline_output # *others handles extra values
+            # ... rest of your display logic
         else:
-            st.subheader("📊 Results")
-
-            for r in results:
-                st.write(
-                    f"Chunk {r['chunk']}: BPM={r['bpm']} | Resp={r['resp']} | Time={r['time']}s"
-                )
-
-            st.success(f"❤️ BPM: {final_bpm}")
-            st.info(f"📊 Confidence: {confidence}%")
-            st.info(f"📉 HRV: {hrv}")
-            st.info(f"🫁 Resp Stability: {resp_var}")
-            st.info(f"😓 Stress: {stress}")
-
-            st.info(f"⚡ Avg Time: {avg_time}s")
-            st.info(f"⚡ Total Time: {total_time}s")
-
-            # Graph
-            bpms = [r["bpm"] for r in results]
-
-            fig, ax = plt.subplots()
-            ax.plot(bpms, marker='o')
-            ax.set_title("BPM over Time")
-            st.pyplot(fig)
+            st.error("Pipeline returned unexpected data format.")
