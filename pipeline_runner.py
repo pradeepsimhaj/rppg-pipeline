@@ -96,11 +96,31 @@
 
 
 
+
 from pipeline.video_loader import load_video
 from pipeline.chunker import create_chunks
 from utils.rppg import rppg_pipeline
 import numpy as np
 import time
+import tempfile
+import requests
+
+
+# =========================
+# 🌐 Handle URL videos
+# =========================
+def load_video_safe(video_path):
+    if video_path.startswith("http"):
+        tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+
+        response = requests.get(video_path, stream=True)
+        for chunk in response.iter_content(chunk_size=1024):
+            tmp_file.write(chunk)
+
+        tmp_file.close()
+        video_path = tmp_file.name
+
+    return load_video(video_path)
 
 
 # =========================
@@ -114,7 +134,7 @@ def remove_outliers(bpms):
 
     return [
         b for b in bpms
-        if 50 <= b <= 110 and abs(b - median) < 15
+        if 50 <= b <= 110 and abs(b - median) < 20   # 🔥 relaxed threshold
     ]
 
 
@@ -133,9 +153,10 @@ def smooth_signal(bpms, window=3):
 # 🚀 Main Pipeline
 # =========================
 def run_pipeline(video_path):
-    frames, fps = load_video(video_path)
 
-    # ❌ Empty video handling
+    # 🔥 FIX: support URL + file
+    frames, fps = load_video_safe(video_path)
+
     if len(frames) == 0:
         return [], 0, 0, 0, "Invalid", 0, 0, 0
 
@@ -150,12 +171,12 @@ def run_pipeline(video_path):
 
         end = time.time()
 
-        # ❌ Reject invalid chunks
-        if bpm == 0 or resp == 0:
-            continue
+        # 🔥 FIX: keep partial data instead of dropping everything
+        if bpm < 40 or bpm > 160:
+            bpm = 0
 
-        if bpm < 45 or bpm > 140:
-            continue
+        if resp < 5 or resp > 40:
+            resp = 0
 
         results.append({
             "chunk": i + 1,
@@ -164,24 +185,24 @@ def run_pipeline(video_path):
             "time": round(end - start, 3)
         })
 
-    bpms = [r["bpm"] for r in results]
+    # =========================
+    # 📊 BPM Processing
+    # =========================
+    bpms = [r["bpm"] for r in results if r["bpm"] > 0]
 
     if len(bpms) == 0:
         return results, 0, 0, 0, "Invalid", 0, 0, 0
 
-    # =========================
-    # 📊 Clean + Smooth
-    # =========================
     clean_bpms = remove_outliers(bpms)
     smoothed_bpms = smooth_signal(clean_bpms)
 
     # =========================
-    # 🎯 Final BPM (robust)
+    # 🎯 Final BPM
     # =========================
     if len(smoothed_bpms) >= 3:
-        final_bpm = int(np.percentile(smoothed_bpms, 50))  # median
+        final_bpm = int(np.median(smoothed_bpms))
     else:
-        final_bpm = int(np.mean(smoothed_bpms)) if smoothed_bpms else 0
+        final_bpm = int(np.mean(smoothed_bpms))
 
     # =========================
     # 🧠 HRV
@@ -201,23 +222,24 @@ def run_pipeline(video_path):
     # =========================
     # 🫁 Resp Stability
     # =========================
-    resps = [r["resp"] for r in results]
+    resps = [r["resp"] for r in results if r["resp"] > 0]
     resp_var = round(np.std(resps), 2) if len(resps) > 1 else 0
 
     # =========================
-    # 🎯 ADVANCED CONFIDENCE (UPDATED)
+    # 🎯 Confidence (stable)
     # =========================
-    valid_ratio = len(clean_bpms) / len(chunks)
+    total_chunks = max(len(chunks), 1)
+
+    valid_ratio = len(clean_bpms) / total_chunks
 
     std_dev = np.std(clean_bpms) if len(clean_bpms) > 1 else 0
     consistency_score = 1 / (1 + std_dev)
 
-    deviation = abs(final_bpm - np.median(clean_bpms)) if clean_bpms else 0
+    deviation = abs(final_bpm - np.median(clean_bpms))
     stability_score = 1 / (1 + deviation)
 
-    # 🔥 NEW: reward physiologically good chunks
     good_chunks = [b for b in clean_bpms if 60 <= b <= 100]
-    quality_ratio = len(good_chunks) / len(clean_bpms) if clean_bpms else 0
+    quality_ratio = len(good_chunks) / len(clean_bpms)
 
     confidence = (
         (valid_ratio * 0.35) +
@@ -228,10 +250,8 @@ def run_pipeline(video_path):
 
     confidence = round(confidence * 100, 2)
 
-    # =========================
-    # 🔥 Relaxed gating (UPDATED)
-    # =========================
-    if confidence < 15:
+    # 🔥 FIX: softer gating
+    if confidence < 10:
         final_bpm = 0
 
     # =========================
