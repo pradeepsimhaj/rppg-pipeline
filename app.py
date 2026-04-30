@@ -157,6 +157,11 @@ if st.session_state.video_path:
         else:
             st.subheader("📊 Results Summary")
 
+            for r in results:
+                st.write(
+                    f"Chunk {r['chunk']}: BPM={r['bpm']} | Resp={r['resp']} | Time={r['time']}s"
+                )
+
             col1, col2 = st.columns(2)
 
             with col1:
