@@ -74,7 +74,7 @@ elif mode == "Record Video":
 
         if path:
             st.session_state.video_path = path
-            
+
 # =========================
 # 🌐 Browser Webcam (CLOUD)
 # =========================
@@ -82,7 +82,6 @@ elif mode == "Webcam (Browser)":
     try:
         from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
         import av
-        import cv2
 
         class VideoProcessor(VideoProcessorBase):
             def __init__(self):
@@ -100,6 +99,8 @@ elif mode == "Webcam (Browser)":
 
         if st.button("Stop & Save Recording"):
             if ctx.video_processor and ctx.video_processor.frames:
+
+                import cv2  # ✅ lazy import (only when needed)
 
                 frames = ctx.video_processor.frames
 
@@ -123,9 +124,10 @@ elif mode == "Webcam (Browser)":
                 st.session_state.video_path = path
                 st.success("Webcam video saved!")
 
-    except Exception as e:
+    except Exception:
         st.error("Webcam not supported in this environment")
 
+        
 # =========================
 # ▶️ Run Analysis
 # =========================
