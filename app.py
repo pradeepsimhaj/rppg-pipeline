@@ -62,8 +62,10 @@ if mode == "Upload Video":
 # =========================
 elif mode == "Record Video":
     if IS_CLOUD:
-        st.error("⚠️ OpenCV webcam not supported in cloud. Use browser webcam instead.")
+        st.error("⚠️ OpenCV webcam not supported in cloud.")
     else:
+        from pipeline.recorder import record_video  # ✅ lazy import
+
         st.warning("This will open your system webcam")
 
         if st.button("Start Recording"):
@@ -74,7 +76,6 @@ elif mode == "Record Video":
                 st.session_state.video_path = path
             else:
                 st.error("Recording failed")
-
 # =========================
 # 🌐 Browser Webcam (Cloud)
 # =========================
