@@ -81,3 +81,4 @@ if st.session_state.video_path:
         ax.set_ylabel("BPM")
 
         st.pyplot(fig)
+        
