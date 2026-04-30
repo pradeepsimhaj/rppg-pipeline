@@ -258,23 +258,106 @@ if mode == "Upload Video":
 # =========================
 # 🌐 Webcam (Browser)
 # =========================
+# elif mode == "Webcam (Browser)":
+#     st.info("📸 Capture video using browser camera")
+
+#     img_file = st.camera_input("Take a picture")
+
+#     if img_file:
+#         os.makedirs("output", exist_ok=True)
+
+#         path = "output/capture.jpg"
+
+#         with open(path, "wb") as f:
+#             f.write(img_file.getbuffer())
+
+#         st.session_state.video_path = path
+#         st.success("Image captured!")        
+
+
+
 elif mode == "Webcam (Browser)":
-    st.info("📸 Capture video using browser camera")
+    st.info("📸 Record a 60-second video for analysis.")
 
-    img_file = st.camera_input("Take a picture")
+    # JavaScript + HTML Component for Recording
+    video_recorder_html = """
+    <div style="text-align: center;">
+        <video id="preview" width="100%" autoplay muted style="background: #000; border-radius: 10px;"></video>
+        <div style="margin-top: 10px;">
+            <button id="startBtn" style="padding: 10px 20px; background: #ff4b4b; color: white; border: none; border-radius: 5px; cursor: pointer;">🔴 Start Recording (60s)</button>
+            <p id="status" style="margin-top: 10px; font-family: sans-serif; color: #555;"></p>
+        </div>
+    </div>
 
-    if img_file:
+    <script>
+        const startBtn = document.getElementById('startBtn');
+        const preview = document.getElementById('preview');
+        const status = document.getElementById('status');
+        
+        let recorder;
+        let chunks = [];
+
+        async function startRecording() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            preview.srcObject = stream;
+            
+            recorder = new MediaRecorder(stream);
+            recorder.ondataavailable = (e) => chunks.push(e.data);
+            recorder.onstop = async () => {
+                const blob = new Blob(chunks, { type: 'video/mp4' });
+                const reader = new FileReader();
+                reader.readAsDataURL(blob);
+                reader.onloadend = () => {
+                    // Send the base64 data back to Streamlit
+                    window.parent.postMessage({
+                        type: 'streamlit:setComponentValue',
+                        value: reader.result
+                    }, '*');
+                };
+                stream.getTracks().forEach(track => track.stop());
+                status.innerText = "✅ Recording Finished! Processing...";
+            };
+
+            recorder.start();
+            status.innerText = "Recording... 60 seconds remaining";
+            
+            // Auto-stop after 60 seconds
+            setTimeout(() => {
+                if(recorder.state === "recording") {
+                    recorder.stop();
+                }
+            }, 60000); 
+        }
+
+        startBtn.onclick = startRecording;
+    </script>
+    """
+
+    # Render the recorder and capture the base64 output
+    video_data = components.html(video_recorder_html, height=450)
+
+    # Use a session state hack to catch the data from the component
+    # In a real app, you might use 'streamlit_js_eval' or a custom component 
+    # but for simplicity, we can use a text_input or a hidden trigger.
+    # Here, we'll assume you use the uploaded_file logic once the JS returns the data:
+    
+    video_base64 = st.text_input("Internal Video Buffer (Hidden)", key="vid_buffer", label_visibility="collapsed")
+
+    if video_base64:
+        # Decode the base64 string
+        header, encoded = video_base64.split(",", 1)
+        data = base64.b64decode(encoded)
+        
         os.makedirs("output", exist_ok=True)
-
-        path = "output/capture.jpg"
-
+        path = "output/webcam_record.mp4"
+        
         with open(path, "wb") as f:
-            f.write(img_file.getbuffer())
-
+            f.write(data)
+        
         st.session_state.video_path = path
-        st.success("Image captured!")        
+        st.success("Video recorded and saved!")
 
-
+        
 # =========================
 # ▶️ Run Analysis
 # =========================
