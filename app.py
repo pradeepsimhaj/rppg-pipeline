@@ -63,23 +63,18 @@ if mode == "Upload Video":
 # =========================
 elif mode == "Record Video":
 
-    st.warning("This works only on local machine")
+    if IS_CLOUD:
+        st.error("⚠️ Webcam not supported in cloud. Use Upload or Browser Webcam.")
+        st.stop()   # 🔥 IMPORTANT
+
+    from pipeline.recorder import record_video
 
     if st.button("Start Recording"):
-        try:
-            from pipeline.recorder import record_video  # lazy import
+        path = record_video()
 
-            path = record_video()
-
-            if path:
-                st.success("Recording completed!")
-                st.session_state.video_path = path
-            else:
-                st.error("Recording failed")
-
-        except Exception as e:
-            st.error(f"Recording error: {e}")
-
+        if path:
+            st.session_state.video_path = path
+            
 # =========================
 # 🌐 Browser Webcam (CLOUD)
 # =========================
